@@ -1,5 +1,6 @@
 // src/components/DeobfuscationPanel.tsx
 
+import { PatternAnalysis } from './PatternAnalysis';
 import React, { useState } from 'react';
 import { Shield, Play, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAssemblyStore } from '../store/assembly-store';
