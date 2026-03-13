@@ -1,10 +1,10 @@
-// src/components/DeobfuscationPanel.tsx
+// src/components/DeobfuscationPanel.tsx - COMPLETE FILE
 
-import { PatternAnalysis } from './PatternAnalysis';
 import React, { useState } from 'react';
 import { Shield, Play, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAssemblyStore } from '../store/assembly-store';
 import { DeobfuscationEngine } from '../deobfuscation/engine';
+import { PatternAnalysis } from './PatternAnalysis'; // ← ADD THIS IMPORT
 
 export function DeobfuscationPanel() {
   const { assembly, obfuscationInfo, setObfuscationInfo, isAnalyzing, setIsAnalyzing } = useAssemblyStore();
@@ -119,6 +119,10 @@ export function DeobfuscationPanel() {
               </div>
             )}
           </div>
+
+          {/* ← ADD PATTERN ANALYSIS HERE ← */}
+          {obfuscationInfo && <PatternAnalysis obfuscationInfo={obfuscationInfo} />}
+          {/* ← PATTERN ANALYSIS ENDS HERE ← */}
 
           {/* Statistics */}
           <div>
