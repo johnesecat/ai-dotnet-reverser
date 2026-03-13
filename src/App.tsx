@@ -1,4 +1,4 @@
-// src/App.tsx
+// src/App.tsx (add export panel)
 
 import React, { useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
@@ -6,6 +6,7 @@ import { FileUploader } from './components/FileUploader';
 import { AssemblyExplorer } from './components/AssemblyExplorer';
 import { CodeViewer } from './components/CodeViewer';
 import { DeobfuscationPanel } from './components/DeobfuscationPanel';
+import { ExportPanel } from './components/ExportPanel'; // NEW
 import { useAssemblyStore } from './store/assembly-store';
 
 export default function App() {
@@ -35,10 +36,10 @@ export default function App() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              🔬 AI .NET Deobfuscator
+              🔬 AI .NET Deobfuscator + Visual Studio Exporter
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Supporting 17 obfuscators: ConfuserEx, Dotfuscator, SmartAssembly, .NET Reactor, Agile.NET, and more
+              Full metadata parsing • WPF/WinForms support • Export to Visual Studio • 17 obfuscators
             </p>
           </div>
 
@@ -52,27 +53,32 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {!assembly ? (
           <div className="flex-1 flex items-center justify-center">
             <FileUploader />
           </div>
         ) : (
           <>
-            {/* Left Sidebar - Assembly Explorer */}
-            <div className="w-80 flex-shrink-0">
-              <AssemblyExplorer />
+            <div className="flex-1 flex overflow-hidden">
+              {/* Left Sidebar */}
+              <div className="w-80 flex-shrink-0">
+                <AssemblyExplorer />
+              </div>
+
+              {/* Center */}
+              <div className="flex-1 overflow-hidden">
+                <CodeViewer />
+              </div>
+
+              {/* Right Sidebar */}
+              <div className="w-96 flex-shrink-0">
+                <DeobfuscationPanel />
+              </div>
             </div>
 
-            {/* Center - Code Viewer */}
-            <div className="flex-1 overflow-hidden">
-              <CodeViewer />
-            </div>
-
-            {/* Right Sidebar - Deobfuscation Panel */}
-            <div className="w-96 flex-shrink-0">
-              <DeobfuscationPanel />
-            </div>
+            {/* Bottom Export Panel */}
+            <ExportPanel />
           </>
         )}
       </div>
