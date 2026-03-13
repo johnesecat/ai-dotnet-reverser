@@ -18,6 +18,10 @@ import { DeepSeaDetector } from './detectors/deepsea';
 import { ObfuscarDetector } from './detectors/obfuscar';
 import { XenocodeDetector } from './detectors/xenocode';
 import { UnknownDetector } from './detectors/unknown';
+import { StringDecryptTransform } from './transforms/string-decrypt';
+import { ControlFlowTransform } from './transforms/control-flow';
+import { ProxyCallTransform } from './transforms/proxy-calls';
+import { RenamingTransform } from './transforms/renaming';
 
 const ALL_DETECTORS = [
   new ConfuserExDetector(),
