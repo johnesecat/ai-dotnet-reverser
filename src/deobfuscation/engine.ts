@@ -95,4 +95,38 @@ export class DeobfuscationEngine {
 
     return entropy;
   }
+
+  async applyTransforms(assembly: Assembly): Promise<TransformResults> {
+    const results: TransformResults = {
+      stringDecrypt: { success: false, itemsProcessed: 0, itemsModified: 0, errors: [] },
+      controlFlow: { success: false, itemsProcessed: 0, itemsModified: 0, errors: [] },
+      proxyCalls: { success: false, itemsProcessed: 0, itemsModified: 0, errors: [] },
+      renaming: { success: false, itemsProcessed: 0, itemsModified: 0, errors: [] }
+    };
+
+    // Apply string decryption
+    const stringTransform = new StringDecryptTransform();
+    results.stringDecrypt = await stringTransform.apply(assembly);
+
+    // Apply control flow simplification
+    const cfTransform = new ControlFlowTransform();
+    results.controlFlow = await cfTransform.apply(assembly);
+
+    // Apply proxy call removal
+    const proxyTransform = new ProxyCallTransform();
+    results.proxyCalls = await proxyTransform.apply(assembly);
+
+    // Apply renaming
+    const renameTransform = new RenamingTransform();
+    results.renaming = await renameTransform.apply(assembly);
+
+    return results;
+  }
+}
+
+interface TransformResults {
+  stringDecrypt: any;
+  controlFlow: any;
+  proxyCalls: any;
+  renaming: any;
 }
