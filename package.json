@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
   "name": "ai-dotnet-reverser",
   "private": true,
@@ -28,3 +29,5 @@
     "gh-pages": "^6.1.0"
   }
 }
+=======
+>>>>>>> 6f1bc8d (Rebuild project architecture from scratch)
