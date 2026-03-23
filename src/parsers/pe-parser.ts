@@ -1,137 +1,77 @@
-// src/parsers/pe-parser.ts
-
 import { BinaryReader } from '../utils/binary-reader';
-import type { PEInfo, PESection } from '../types/assembly';
+
+export interface PEInfo {
+  isPE: boolean;
+  isDotNet: boolean;
+  architecture: string;
+  clrHeaderRVA: number;
+}
 
 export class PEParser {
-  private data: Uint8Array;
-  private reader: BinaryReader;
-
-  constructor(data: Uint8Array) {
-    this.data = data;
-    this.reader = new BinaryReader(data);
-  }
-
-  parse(): PEInfo {
+  static parse(data: Uint8Array): PEInfo {
     try {
-      // DOS header
-      const dosSignature = this.reader.readUInt16();
-      if (dosSignature !== 0x5A4D) {
-        return this.errorResult('Invalid DOS signature');
+      const reader = new BinaryReader(data);
+
+      // DOS Header
+      const dosSignature = String.fromCharCode(reader.readUInt8(), reader.readUInt8());
+      if (dosSignature !== 'MZ') {
+        throw new Error('Invalid DOS signature');
       }
 
-      this.reader.setPosition(0x3C);
-      const peHeaderOffset = this.reader.readUInt32();
+      // Get PE offset
+      reader.seek(0x3C);
+      const peOffset = reader.readUInt32();
 
-      // PE signature
-      this.reader.setPosition(peHeaderOffset);
-      const peSignature = this.reader.readUInt32();
-      if (peSignature !== 0x00004550) {
-        return this.errorResult('Invalid PE signature');
+      if (peOffset > data.length - 4) {
+        throw new Error('Invalid PE offset');
       }
 
-      // COFF header
-      const machine = this.reader.readUInt16();
-      const numberOfSections = this.reader.readUInt16();
-      this.reader.skip(12);
-      const sizeOfOptionalHeader = this.reader.readUInt16();
-      const characteristics = this.reader.readUInt16();
-
-      // Optional header
-      const optionalHeaderStart = this.reader.getPosition();
-      const magic = this.reader.readUInt16();
-      const isPE32Plus = magic === 0x020B;
-
-      if (magic !== 0x010B && magic !== 0x020B) {
-        return this.errorResult('Invalid optional header magic');
+      // PE Signature
+      reader.seek(peOffset);
+      const peSig = reader.readUInt32();
+      if (peSig !== 0x00004550) { // 'PE\0\0'
+        throw new Error('Invalid PE signature');
       }
 
-      // Navigate to data directories
-      const dataDirectoriesOffset = isPE32Plus ? 112 : 96;
-      this.reader.setPosition(optionalHeaderStart + dataDirectoriesOffset);
-      const numberOfDataDirectories = this.reader.readUInt32();
+      // COFF Header
+      const machine = reader.readUInt16();
+      const architecture = machine === 0x014c ? 'x86' : 
+                          machine === 0x8664 ? 'x64' : 
+                          machine === 0x0200 ? 'IA64' : 'Unknown';
 
-      if (numberOfDataDirectories < 15) {
-        return this.errorResult('Not a .NET assembly');
+      // Skip to Optional Header
+      reader.seek(peOffset + 24); // After COFF header
+      const optionalHeaderSize = reader.readUInt16();
+      
+      if (optionalHeaderSize === 0) {
+        throw new Error('No optional header');
       }
 
-      // Skip to CLR header (directory 14)
-      this.reader.skip(14 * 8);
-      const clrHeaderRVA = this.reader.readUInt32();
-      const clrHeaderSize = this.reader.readUInt32();
+      // Read Optional Header Magic
+      reader.seek(peOffset + 24);
+      const magic = reader.readUInt16();
+      const is64Bit = magic === 0x020b;
 
-      if (clrHeaderRVA === 0) {
-        return this.errorResult('Not a .NET assembly');
-      }
-
-      // Read section headers
-      const sectionHeadersOffset = optionalHeaderStart + sizeOfOptionalHeader;
-      this.reader.setPosition(sectionHeadersOffset);
-
-      const sections: PESection[] = [];
-      for (let i = 0; i < numberOfSections; i++) {
-        const nameBytes = this.reader.readBytes(8);
-        const name = new TextDecoder('ascii').decode(nameBytes.filter(b => b !== 0));
-        const virtualSize = this.reader.readUInt32();
-        const virtualAddress = this.reader.readUInt32();
-        const rawDataSize = this.reader.readUInt32();
-        const rawDataPointer = this.reader.readUInt32();
-        this.reader.skip(16);
-
-        sections.push({ name, virtualAddress, virtualSize, rawDataPointer, rawDataSize });
-      }
-
-      // Read CLR header
-      const clrHeaderFileOffset = this.rvaToFileOffset(clrHeaderRVA, sections);
-      if (clrHeaderFileOffset === 0) {
-        return this.errorResult('Could not locate CLR header');
-      }
-
-      this.reader.setPosition(clrHeaderFileOffset);
-      this.reader.skip(8);
-      const metadataRVA = this.reader.readUInt32();
-      const metadataSize = this.reader.readUInt32();
+      // CLR Header is at different offsets for 32/64 bit
+      const clrHeaderOffset = is64Bit ? peOffset + 24 + 128 + 88 : peOffset + 24 + 128 + 72;
+      
+      reader.seek(clrHeaderOffset);
+      const clrHeaderRVA = reader.readUInt32();
 
       return {
-        isValid: true,
-        isPE32Plus,
-        clrHeaderRVA,
-        clrHeaderSize,
-        metadataRVA,
-        metadataSize,
-        sections
+        isPE: true,
+        isDotNet: clrHeaderRVA !== 0,
+        architecture,
+        clrHeaderRVA
       };
     } catch (error) {
-      return this.errorResult(error instanceof Error ? error.message : 'Parse error');
+      console.error('PE parsing error:', error);
+      return {
+        isPE: false,
+        isDotNet: false,
+        architecture: 'Unknown',
+        clrHeaderRVA: 0
+      };
     }
-  }
-
-  private rvaToFileOffset(rva: number, sections: PESection[]): number {
-    for (const section of sections) {
-      if (rva >= section.virtualAddress && rva < section.virtualAddress + section.virtualSize) {
-        return section.rawDataPointer + (rva - section.virtualAddress);
-      }
-    }
-    return 0;
-  }
-
-  private errorResult(message: string): PEInfo {
-    return {
-      isValid: false,
-      isPE32Plus: false,
-      clrHeaderRVA: 0,
-      clrHeaderSize: 0,
-      metadataRVA: 0,
-      metadataSize: 0,
-      sections: [],
-      error: message
-    };
-  }
-
-  getMetadataBytes(peInfo: PEInfo): Uint8Array | null {
-    if (!peInfo.isValid || peInfo.metadataRVA === 0) return null;
-    const fileOffset = this.rvaToFileOffset(peInfo.metadataRVA, peInfo.sections);
-    if (fileOffset === 0) return null;
-    return this.data.slice(fileOffset, fileOffset + peInfo.metadataSize);
   }
 }
